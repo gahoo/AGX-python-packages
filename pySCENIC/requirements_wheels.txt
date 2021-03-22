@@ -1,0 +1,7 @@
+adjustText==0.7.3
+MulticoreTSNE==0.1
+multiprocessing-on-dill==3.5.0a4
+numpy-groupies==0.9.13
+python-igraph==0.8.3
+scikit-learn==0.24.1
+umap-learn==0.5.1
