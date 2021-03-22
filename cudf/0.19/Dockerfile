@@ -16,7 +16,7 @@ ENV PATH=$PATH:/usr/local/cmake/bin:/usr/local/cuda-10.2/bin
 #    cd cudf-branch-0.19/cpp && \
 RUN git clone http://172.17.0.1:3000/gahoo/cudf.git && \
     cd cudf && \
-    git checkout branch-0.19 && \
+    git checkout 2f5901ffb49eed3216d82d793e5a366a5e021d72 && \
     cd cpp && \
     sed 's#https://#http://172.17.0.1:9000/#g' cmake/thirdparty/CUDF_GetCPM.cmake -i && \
     find cmake/thirdparty/ -name "*.cmake"|xargs sed 's#https://github.com/.*/#http://172.17.0.1:3000/gahoo/#g' -i && \
