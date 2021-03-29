@@ -13,4 +13,9 @@
 #docker build -t cytograph:build cytograph
 #docker build -t pyscenic:0.11.0 pySCENIC
 #nvidia-docker build -t rmm:0.18 rmm/0.18
-docker build -t cudf:0.18.1 cudf/0.18.1
+#docker build -t cudf:0.18.1 cudf/0.18.1
+#nvidia-docker build -t faiss:1.7.0 faiss
+#nvidia-docker build -t nccl:2.8.3 nccl
+#nvidia-docker build -t treelite:0.93 treelite
+nvidia-docker build -t cuml:0.18.0 cuml/0.18.0
+nvidia-docker build -t rapids:0.18 rapids
