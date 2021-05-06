@@ -31,21 +31,21 @@ RUN patch -s -p0 -i /tmp/h2ogpu.patches && \
 FROM python:3.8-cuda10.2
 
 RUN apt install -y libopenblas-dev ocl-icd-opencl-dev
-COPY --from=builder /h2o4gpu/src/interface_py/requirements_runtime.txt /tmp/requirements_runtime.txt
-#COPY --from=builder /opt/venv/lib/python3.8/site-packages/ /opt/venv/lib/python3.8/site-packages/
+#COPY --from=builder /h2o4gpu/src/interface_py/requirements_runtime.txt /tmp/requirements_runtime.txt
+COPY --from=builder /opt/venv/lib/python3.8/site-packages/ /opt/venv/lib/python3.8/site-packages/
 
-RUN pip install --no-cache-dir --trusted-host 172.17.0.1 -i http://172.17.0.1:9000/pypi/ -r /tmp/requirements_runtime.txt numpy==1.18.1
-RUN cd /tmp && \
-    wget http://172.17.0.1:9000/pypi/lightgbm/lightgbm_cpu-2.2.4-py3-none-any.whl -O lightgbm-2.2.4-py3-none-any.whl && \
-    pip install lightgbm-2.2.4-py3-none-any.whl && \
-    wget http://172.17.0.1:9000/pypi/lightgbm/lightgbm_gpu-2.2.4-py3-none-any.whl -O lightgbm-2.2.4-py3-none-any.whl && \
-    pip install lightgbm-2.2.4-py3-none-any.whl && \
-    wget http://172.17.0.1:9000/pypi/xgboost/xgboost-0.90-py3-none-any.whl && \
-    pip install xgboost-0.90-py3-none-any.whl && \
-    mv /opt/venv/lib/python3.8/site-packages/xgboost /opt/venv/lib/python3.8/site-packages/xgboost_prev && \
-    wget http://172.17.0.1:9000/pypi/xgboost/xgboost-1.1.0-cp38-cp38-linux_aarch64.whl && \
-    pip install xgboost-1.1.0-cp38-cp38-linux_aarch64.whl && \
-    rm /tmp/*.whl
-#RUN pip install --no-cache-dir --trusted-host 172.17.0.1 -i http://172.17.0.1:9000/pypi/ h2o4gpu==0.21.2 && \
-#    mv /opt/venv/lib/python3.8/site-packages/h2o4gpu /opt/venv/lib/python3.8/site-packages/scikit_learn
-RUN pip install --no-cache-dir --trusted-host 172.17.0.1 -i http://172.17.0.1:9000/pypi/ h2o4gpu==0.4.1
+#RUN pip install --no-cache-dir --trusted-host 172.17.0.1 -i http://172.17.0.1:9000/pypi/ -r /tmp/requirements_runtime.txt numpy==1.18.1
+#RUN cd /tmp && \
+#    wget http://172.17.0.1:9000/pypi/lightgbm/lightgbm_cpu-2.2.4-py3-none-any.whl -O lightgbm-2.2.4-py3-none-any.whl && \
+#    pip install lightgbm-2.2.4-py3-none-any.whl && \
+#    wget http://172.17.0.1:9000/pypi/lightgbm/lightgbm_gpu-2.2.4-py3-none-any.whl -O lightgbm-2.2.4-py3-none-any.whl && \
+#    pip install lightgbm-2.2.4-py3-none-any.whl && \
+#    wget http://172.17.0.1:9000/pypi/xgboost/xgboost-0.90-py3-none-any.whl && \
+#    pip install xgboost-0.90-py3-none-any.whl && \
+#    mv /opt/venv/lib/python3.8/site-packages/xgboost /opt/venv/lib/python3.8/site-packages/xgboost_prev && \
+#    wget http://172.17.0.1:9000/pypi/xgboost/xgboost-1.1.0-cp38-cp38-linux_aarch64.whl && \
+#    pip install xgboost-1.1.0-cp38-cp38-linux_aarch64.whl && \
+#    rm /tmp/*.whl
+##RUN pip install --no-cache-dir --trusted-host 172.17.0.1 -i http://172.17.0.1:9000/pypi/ h2o4gpu==0.21.2 && \
+##    mv /opt/venv/lib/python3.8/site-packages/h2o4gpu /opt/venv/lib/python3.8/site-packages/scikit_learn
+#RUN pip install --no-cache-dir --trusted-host 172.17.0.1 -i http://172.17.0.1:9000/pypi/ h2o4gpu==0.4.1
