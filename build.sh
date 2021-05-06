@@ -19,3 +19,4 @@
 #nvidia-docker build -t treelite:0.93 treelite
 nvidia-docker build -t cuml:0.18.0 cuml/0.18.0
 nvidia-docker build -t rapids:0.18 rapids
+nvidia-docker build -t h2o4gpu:0.4.1 h2o4gpu
