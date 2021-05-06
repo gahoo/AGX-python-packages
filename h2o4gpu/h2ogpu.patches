@@ -1,0 +1,239 @@
+diff -ruN h2o4gpu/CMakeLists.txt new/CMakeLists.txt
+--- h2o4gpu/CMakeLists.txt	2021-04-02 01:41:39.429404693 +0000
++++ new/CMakeLists.txt	2021-04-01 10:24:17.000000000 +0000
+@@ -122,11 +122,15 @@
+         find_library(CUSOLVER_STATIC_LIB NAMES libcusolver_static.a
+                 PATHS   "${CUDA_TOOLKIT_ROOT_DIR}/lib64"
+                         "${CUDA_TOOLKIT_ROOT_DIR}/targets/x86_64-linux/lib/")
++	find_library(LAPACK_STATIC_LIB NAMES liblapack_static.a
++                PATHS   "${CUDA_TOOLKIT_ROOT_DIR}/lib64"
++                        "${CUDA_TOOLKIT_ROOT_DIR}/targets/x86_64-linux/lib/")
+ 
+         set(STATIC_LIBS ${CUBLAS_STATIC_LIB})
+         list(APPEND STATIC_LIBS ${CULIBOS_STATIC_LIB})
+         list(APPEND STATIC_LIBS ${CUSPARSE_STATIC_LIB})
+         list(APPEND STATIC_LIBS ${CUSOLVER_STATIC_LIB})
++	list(APPEND STATIC_LIBS ${LAPACK_STATIC_LIB})
+ 
+         if(DEV_BUILD)
+             MESSAGE(STATUS "Building DEVELOPER compute capability version.")
+@@ -134,7 +138,7 @@
+             SET(CMAKE_BUILD_TYPE Debug)
+         else()
+             MESSAGE(STATUS "Building RELEASE compute capability version.")
+-            SET(GPU_COMPUTE_VER 35;50;52;60;61)
++            SET(GPU_COMPUTE_VER 72)
+         endif()
+ 
+         if(DEV_SYNC)
+@@ -142,15 +146,15 @@
+             add_compile_definitions(SYNC)
+         endif()
+ 
+-        if(((CUDA_VERSION_MAJOR EQUAL 9) OR (CUDA_VERSION_MAJOR GREATER 9)) AND NOT DEV_BUILD)
+-            MESSAGE(STATUS "CUDA GREATER OR EQUAL THAN 9.0 detected, adding Volta compute capability (7.0).")
+-            SET(GPU_COMPUTE_VER "${GPU_COMPUTE_VER};70")
+-        endif()
+-
+-        if(((CUDA_VERSION_MAJOR EQUAL 10) OR (CUDA_VERSION_MAJOR GREATER 10)) AND NOT DEV_BUILD)
+-            MESSAGE(STATUS "CUDA GREATER OR EQUAL THAN 10.0 detected, adding Turing compute capability (7.5).")
+-            SET(GPU_COMPUTE_VER "${GPU_COMPUTE_VER};75")
+-        endif()
++	#if(((CUDA_VERSION_MAJOR EQUAL 9) OR (CUDA_VERSION_MAJOR GREATER 9)) AND NOT DEV_BUILD)
++        #    MESSAGE(STATUS "CUDA GREATER OR EQUAL THAN 9.0 detected, adding Volta compute capability (7.0).")
++        #    SET(GPU_COMPUTE_VER "${GPU_COMPUTE_VER};70")
++        #endif()
++
++        #if(((CUDA_VERSION_MAJOR EQUAL 10) OR (CUDA_VERSION_MAJOR GREATER 10)) AND NOT DEV_BUILD)
++        #    MESSAGE(STATUS "CUDA GREATER OR EQUAL THAN 10.0 detected, adding Turing compute capability (7.5).")
++        #    SET(GPU_COMPUTE_VER "${GPU_COMPUTE_VER};75")
++        #endif()
+ 
+         if(CUDA_VERSION VERSION_GREATER "10.1" OR CUDA_VERSION VERSION_EQUAL "10.1")
+             find_library(CUBLASLT_STATIC_LIB NAMES libcublasLt_static.a
+@@ -176,6 +180,11 @@
+         if($ENV{USENVTX})
+             MESSAGE(STATUS "Building with NVTX support on.")
+             SET(NVTX_LIBRARY nvToolsExt)
++	    #find_library(NVTX_LIB NAMES libnvToolsExt.so
++            #        PATHS   "${CUDA_TOOLKIT_ROOT_DIR}/lib64"
++            #                "${CUDA_TOOLKIT_ROOT_DIR}/targets/x86_64-linux/lib/")
++	    list(APPEND NVTX_LIBRARY "-L${CUDA_TOOLKIT_ROOT_DIR}/lib64"
++)
+         endif()
+ 
+ 
+diff -ruN h2o4gpu/Makefile new/Makefile
+--- h2o4gpu/Makefile	2021-04-02 01:41:39.429404693 +0000
++++ new/Makefile	2021-04-01 10:35:16.000000000 +0000
+@@ -90,18 +90,19 @@
+ 
+ nccl/build/lib/libnccl_static.a:
+ 	@echo "----- Building NCCL -----"
+-	cd nccl && $(MAKE) -j src.build CUDA_HOME=$(CUDA_HOME)
++	cd nccl && $(MAKE) -j`nproc` src.build CUDA_HOME=$(CUDA_HOME)
+ 
+ cpp:
+ 	mkdir -p build && \
+ 	cd build && \
+-	cmake -DDEV_BUILD=${DEV_BUILD} ../ && \
++	#cmake -DDEV_BUILD=${DEV_BUILD} ../ && \
++	cmake -DCMAKE_VERBOSE_MAKEFILE=ON -DUSENVTX=ON -DDEV_BUILD=${DEV_BUILD} .. && \
+ 	make -j`nproc` && \
+ 	cp _ch2o4gpu_*pu.so ../src/interface_c/ && \
+ 	cp ch2o4gpu_*pu.py ../src/interface_py/h2o4gpu/libs;
+ 
+ py: apply-sklearn_simple build/VERSION.txt
+-	$(MAKE) -j all -C src/interface_py
++	$(MAKE) -j`nproc` all -C src/interface_py
+ 
+ .PHONY: xgboost_prev
+ xgboost_prev:
+@@ -126,7 +127,8 @@
+ 	cd LightGBM && (rm -rf build || true) && mkdir -p build && \
+ 	sed -i 's/#define BOOST_COMPUTE_USE_OFFLINE_CACHE//g' src/treelearner/gpu_tree_learner.h && \
+ 	cd build && \
+-	cmake -DUSE_GPU=1 -DCMAKE_INSTALL_PREFIX=.. -DCMAKE_C_COMPILER=/usr/bin/gcc -DCMAKE_CXX_COMPILER=/usr/bin/g++ -DOpenCL_LIBRARY=$(CUDA_HOME)/lib64/libOpenCL.so -DOpenCL_INCLUDE_DIR=$(CUDA_HOME)/include/ -DBOOST_ROOT=/opt/boost -DBoost_USE_STATIC_LIBS=ON -DBoost_NO_SYSTEM_PATHS=ON .. && \
++	cmake -DUSE_GPU=ON -DCMAKE_INSTALL_PREFIX=.. -DCMAKE_C_COMPILER=/usr/bin/gcc -DCMAKE_CXX_COMPILER=/usr/bin/g++ -DUSENVTX=ON .. && \
++	#cmake -DUSE_GPU=1 -DCMAKE_INSTALL_PREFIX=.. -DCMAKE_C_COMPILER=/usr/bin/gcc -DCMAKE_CXX_COMPILER=/usr/bin/g++ -DOpenCL_LIBRARY=$(CUDA_HOME)/lib64/libOpenCL.so -DOpenCL_INCLUDE_DIR=$(CUDA_HOME)/include/ -DBOOST_ROOT=/opt/boost -DBoost_USE_STATIC_LIBS=ON -DBoost_NO_SYSTEM_PATHS=OFF .. && \
+ 	make -j`nproc` && \
+ 	make install && \
+ 	cd .. && \
+@@ -191,7 +193,7 @@
+ 
+ build: update_submodule build_quick
+ 
+-build_quick: cpp testunit py
++build_quick: cpp py
+ 
+ build_py: update_submodule clean_py py # avoid cpp
+ 
+@@ -218,7 +220,7 @@
+ 	cd LightGBM/python-package/dist_cpu && $(PYTHON) -m pip install lightgbm*-py3-none-any.whl --upgrade --no-deps --target .
+ 
+ install_py:
+-	$(MAKE) -j install -C src/interface_py
++	$(MAKE) -j`nproc` install -C src/interface_py
+ 
+ install: install_py
+ 
+@@ -239,7 +241,7 @@
+ 
+ clean_py:
+ 	-rm -rf src/interface_py/build/
+-	$(MAKE) -j clean -C src/interface_py
++	$(MAKE) -j`nproc` clean -C src/interface_py
+ 
+ clean_xgboost_prev:
+ 	-rm -rf xgboost_prev/build/
+@@ -505,7 +507,8 @@
+ testunit:
+ 	mkdir -p build && \
+ 	cd build && \
+-	cmake -DDEV_BUILD=${DEV_BUILD} ../ && \
++	#cmake -DDEV_BUILD=${DEV_BUILD} ../ && \
++	cmake -DCMAKE_VERBOSE_MAKEFILE=ON -DUSENVTX=ON -DDEV_BUILD=${DEV_BUILD} .. && \
+ 	make h2o4gpu_test -j$(nproc) && \
+ 	./h2o4gpu_test
+ #########################################
+@@ -574,10 +577,10 @@
+ #################### CPP Tests
+ 
+ test_cpp:
+-	$(MAKE) -j test_cpp -C src/
++	$(MAKE) -j`nproc` test_cpp -C src/
+ 
+ clean_test_cpp:
+-	$(MAKE) -j clean_cpp_tests -C src/
++	$(MAKE) -j`nproc` clean_cpp_tests -C src/
+ 
+ #################### Documentation
+ 
+diff -ruN h2o4gpu/scripts/apply_sklearn_pipinstall.sh new/scripts/apply_sklearn_pipinstall.sh
+--- h2o4gpu/scripts/apply_sklearn_pipinstall.sh	2021-04-02 01:41:39.429404693 +0000
++++ new/scripts/apply_sklearn_pipinstall.sh	2021-04-01 13:43:22.000000000 +0000
+@@ -5,5 +5,5 @@
+ cd scikit-learn
+ file=`ls dist/h2o4gpu*.whl`
+ 
+-pip install $file --upgrade --constraint ../src/interface_py/requirements_buildonly.txt --target ../sklearn/ --upgrade-strategy only-if-needed
++pip install $file --trusted-host 172.17.0.1 -i http://172.17.0.1:9000/pypi/ --extra-index https://mirrors.aliyun.com/pypi/simple --upgrade -r ../src/interface_py/requirements_buildonly.txt --target ../sklearn/ --upgrade-strategy only-if-needed
+ cd ../
+diff -ruN h2o4gpu/src/interface_py/Makefile new/src/interface_py/Makefile
+--- h2o4gpu/src/interface_py/Makefile	2021-04-02 01:41:39.429404693 +0000
++++ new/src/interface_py/Makefile	2021-04-01 10:25:21.000000000 +0000
+@@ -37,19 +37,15 @@
+ 	ln -sf ../../xgboost_prev/python-package/xgboost ./xgboost_prev
+ 	rm -rf ../../xgboost/python-package/xgboost/src/
+ 	rm -rf ../../xgboost_prev/python-package/xgboost/src/
+-	if [ `arch` != "ppc64le" ]; then \
+-	ln -sf ../../LightGBM/python-package/dist_gpu/lightgbm lightgbm_gpu ; \
+-	fi
+-	ln -sf ../../LightGBM/python-package/dist_cpu/lightgbm lightgbm_cpu 
++	ln -sf ../../LightGBM/python-package/dist_gpu/lightgbm lightgbm_gpu
++	ln -sf ../../LightGBM/python-package/dist_cpu/lightgbm lightgbm_cpu
+ 	ln -sf ../../py3nvml/py3nvml .
+ 
+ 	$(PYTHON) setup.py sdist bdist_wheel
+ 
+ 	# update build with lightgbm shared library
+-	if [ `arch` != "ppc64le" ]; then \
+-	mkdir -p build/lib/lightgbm_gpu/ ; cd build/lib/lightgbm_gpu/ ; ln -sf ../../../../../LightGBM/python-package/dist_gpu/lightgbm/lib_lightgbm.so . ; cd ../../../ ; \
+-	fi
+-	mkdir -p build/lib/lightgbm/ ; cd build/lib/lightgbm_cpu/ ; ln -sf ../../../../../LightGBM/python-package/dist_cpu/lightgbm/lib_lightgbm.so . ; cd ../../../ 
++	mkdir -p build/lib/lightgbm_gpu/ ; cd build/lib/lightgbm_gpu/ ; ln -sf ../../../../../LightGBM/python-package/dist_gpu/lightgbm/lib_lightgbm.so . ; cd ../../../
++	mkdir -p build/lib/lightgbm/ ; cd build/lib/lightgbm_cpu/ ; ln -sf ../../../../../LightGBM/python-package/dist_cpu/lightgbm/lib_lightgbm.so . ; cd ../../../
+ 
+ 	# Make wheel with other builds added
+ 	rm -rf dist/*.whl
+@@ -69,7 +65,7 @@
+ 	find -name *__pycache__ | xargs rm -rf
+ 	# something wrong with below
+ 	#$(PYTHON) setup.py install
+-	$(PYTHON) -m pip install dist/h2o4gpu*.whl --upgrade --constraint requirements_buildonly.txt
++	$(PYTHON) -m pip install dist/h2o4gpu*.whl --upgrade -r requirements_buildonly.txt
+ 
+ clean:
+ 	rm -f h2o4gpu/BUILD_INFO.txt
+diff -ruN h2o4gpu/xgboost/Makefile2 new/xgboost/Makefile2
+--- h2o4gpu/xgboost/Makefile2	2021-04-02 01:41:39.429404693 +0000
++++ new/xgboost/Makefile2	2021-04-01 10:22:30.000000000 +0000
+@@ -31,12 +31,12 @@
+ 	# pip install -r requirements_build.txt
+ 	echo "arch: `arch`"
+ 	echo "cuda_short: `cat cuda_short.txt`"
+-	mkdir -p build && cd build && cmake .. -DUSE_CUDA=ON ${NCCL} -DCMAKE_BUILD_TYPE=RELWITHDEBINFO && make -j`nproc`
++	mkdir -p build && cd build && cmake .. -DUSE_CUDA=ON ${NCCL} -DCMAKE_BUILD_TYPE=RELWITHDEBINFO -DGPU_COMPUTE_VER=72 && make -j`nproc`
+ 
+ libxgboostp2nonccl:
+ 	#pip install -r requirements_runtime.txt
+ 	# pip install -r requirements_build.txt
+-	mkdir -p build && cd build && cmake .. -DUSE_CUDA=ON -DCMAKE_BUILD_TYPE=RELWITHDEBINFO && make -j`nproc`
++	mkdir -p build && cd build && cmake .. -DUSE_CUDA=ON -DCMAKE_BUILD_TYPE=RELWITHDEBINFO -DGPU_COMPUTE_VER=72 && make -j`nproc`
+ 
+ libxgboostp2cpu-only:
+ 	#pip install -r requirements_runtime.txt
+diff -ruN h2o4gpu/xgboost_prev/Makefile2 new/xgboost_prev/Makefile2
+--- h2o4gpu/xgboost_prev/Makefile2	2021-04-02 01:41:39.429404693 +0000
++++ new/xgboost_prev/Makefile2	2021-04-01 10:22:30.000000000 +0000
+@@ -31,17 +31,17 @@
+ 	# pip install -r requirements_build.txt
+ 	echo "arch: `arch`"
+ 	echo "cuda_short: `cat cuda_short.txt`"
+-	mkdir -p build && cd build && cmake .. -DUSE_CUDA=ON ${NCCL} -DCMAKE_BUILD_TYPE=RELWITHDEBINFO && make -j
++	mkdir -p build && cd build && cmake .. -DUSE_CUDA=ON ${NCCL} -DCMAKE_BUILD_TYPE=RELWITHDEBINFO -DGPU_COMPUTE_VER=72 && make -j`nproc`
+ 
+ libxgboostp2nonccl:
+ 	#pip install -r requirements_runtime.txt
+ 	# pip install -r requirements_build.txt
+-	mkdir -p build && cd build && cmake .. -DUSE_CUDA=ON -DCMAKE_BUILD_TYPE=RELWITHDEBINFO && make -j
++	mkdir -p build && cd build && cmake .. -DUSE_CUDA=ON -DCMAKE_BUILD_TYPE=RELWITHDEBINFO -DGPU_COMPUTE_VER=72 && make -j`nproc`
+ 
+ libxgboostp2cpu-only:
+ 	#pip install -r requirements_runtime.txt
+ 	# pip install -r requirements_build.txt
+-	mkdir -p build && cd build && cmake .. -DUSE_CUDA=OFF -DCMAKE_BUILD_TYPE=RELWITHDEBINFO && make -j
++	mkdir -p build && cd build && cmake .. -DUSE_CUDA=OFF -DCMAKE_BUILD_TYPE=RELWITHDEBINFO -DGPU_COMPUTE_VER=72 && make -j`nproc`
+ 
+ libxgboostp3:
+ 	cd python-package && rm -rf dist && python setup.py sdist bdist_wheel
